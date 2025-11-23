@@ -1266,6 +1266,106 @@ public Collection<? extends GrantedAuthority> getAuthorities() {Set<SimpleGrante
     public List<AppointmentResponseDto> getAllAppointmentsOfDoctor(Long doctorId) {}
     ```
 
+********************************* Project 5 *************************************
+
+## Integrate MongoDB in Spring Boot
+
+### Setup MongoDB in Spring Boot
+- Connect your Spring Boot App with mongoDB, using the following yml
+```yml
+spring:
+  data:
+    mongodb:
+      uri: mongodb://<username>:<password>@127.0.0.1:27017/ecommerce_db?authSource=admin
+      auto-index-creation: true
+```
+- Syntax: `mongodb://username:password@MongoDB_Hosted_URL/<database_name>?authSource=<authentication_source_database>`
+
+### Working with MongoDB in Spring Boot
+- In Case of SQL Database we use `@Entity` annotation with DB Tables Entity Class, here we will be using `@Document` annotaion. In MongoDB we don't have tables we have collectoins.
+- When data is inserted in db, spring boot will add extra field : `_class` which will tell this object belongs to which class for matching.
+```bash
+{
+    _id: ObjectId('6922bf9194d4da18a925855b'),
+    quantity: 3,
+    totalPrice: 300,
+    status: 'OUT FOR DELIVERY',
+    _class: 'com.learning.mongoDBSpringBoot.entity.Order'
+}
+```
+- Enable Logging to See MongoDB Query when any operation perform on mongodb
+```bash
+logging:
+  level:
+    org.springframework.data.mongodb:
+      core.MongoTemplate: DEBUG
+```
+- **Note**: If you are not setting Username and Password then it will use `test` db not matter you provide the uri for your db or specifically mention your database
+
+### MongoDB Useful Annotations
+To use this annotation, first you need to configure this. Create `@Configuration` with `@EnableMongoAuditing`
+```java
+@Configuration
+@EnableMongoAuditing
+public class MongoConfig {
+}
+```
+1) `@CreatedDate` : Current Time Stamp when any new object is created in MongoDB
+2) `@LastModifiedDate` : Updated Time, last when that Object is modified in MongoDB 
+
+### Indexing in MongoDB Spring Boot
+- We can create index for single field or combination of two or more fields
+- Index on single field using `@Indexed` annotation of specific field in Document class
+    ```java
+    @Document
+    public class Order{
+        // Other fields here
+        
+        @@Indexed
+        private String status;
+    }
+    ```
+- Index on combination of fields in Document Class
+    ```java
+    @Document
+    @CompoundIndex(name = "idx_quantity_status", def = "{'quantity': -1, status: 1}")
+    public class Order{}
+    ```
+    Here `quantity: 1` **1** means when sorting is done on this index then it will be in asscending order, for decending order we use **-1**
+
+
+- **Note**: Mongodb command to get indexes : `db.orders.getIndexes()`
+- Index me read query faster but it slower down the write query, but it can be negligible in most cases
+
+
+### Custom Query Methods For MongoDB
+- Syntax: `findBy___` , this will create find query with naming of fields in Camel Case and we can also use `AND`, `OR`, `GreaterThan`, `LessThan`, `Between`, etc
+```java
+public interface OrderRepository extends MongoRepository<Order, String> {
+    List<Order> findByStatus(String status);
+    List<Order> findByTotalPriceGreaterThan(double price);
+    List<Order> findByStatusAndQuantityLessThan(String status, int quantity);
+}
+```
+- For Custom Query we can use `@Query` annotation
+```java
+@Query("{status: ?0, totalPrice: {$gte: ?1}}")
+List<Order> findOrdersByStatusAndPriceAbove(String status, double price);
+```
+- Function parameter are addressed by `?<position of parameter>` -> e.g : `?1` this is for status parameter
+
+### Pagination in MongoDB Spring Boot
+```java
+public void testGetAllOrdersPagination(){
+    int pageNumber = 0;
+    int pageSize = 5;
+    Pageable pageRequest = PageRequest.of(pageNumber, pageSize);
+//    PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.DESC, "totalPrice"));
+    List<Order> ordersList = orderRepository.findAll(pageRequest).toList();
+    System.out.println(ordersList);
+}
+```
+
 
 ## Extra
 
