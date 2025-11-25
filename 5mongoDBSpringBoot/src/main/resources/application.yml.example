@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: learningCachingSpringBoot
+
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/test
+      auto-index-creation: true
+
+logging:
+  level:
+    org.springframework.data.mongodb:
+      core.MongoTemplate: DEBUG

@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: learningCachingSpringBoot
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/office_db
+    username: postgres
+    password: qwerty123
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update       
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: MI2MwJOkrn1vyFb5Q4eZ64bsedOq7m5P
+
+  cache:
+    type: redis
+    #type: simple             # built-in simple in-memory cache
+
+server:
+  port: 8080

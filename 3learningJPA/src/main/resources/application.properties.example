@@ -1,0 +1,16 @@
+spring.application.name=3learningJPA
+
+spring.datasource.url=jdbc:postgresql://localhost:5432/hospitalDB
+spring.datasource.username=postgres
+spring.datasource.password=password
+
+spring.jpa.hibernate.ddl-auto=update
+#spring.jpa.hibernate.ddl-auto=create-drop
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+
+# Database Initialization
+spring.jpa.defer-datasource-initialization=true
+spring.sql.init.mode=never
+#spring.sql.init.mode=always
+spring.sql.init.data-locations=classpath:data.sql

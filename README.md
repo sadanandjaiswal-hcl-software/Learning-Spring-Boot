@@ -1530,7 +1530,7 @@ List<?> findByCity(String city);
 
 ## Caching in Spring Boot
 Spring boot provides a Cache Abstraction API that allow us to use different cache providers to cache objects.
-![img.png](img.png)
+![assets/img26.png](assets/img26.png)
 
 ### Default Caching in Spring Boot (In memory Cache)
 1. `@EnableCaching` : It is a class level annotation to enable caching in spring boot
