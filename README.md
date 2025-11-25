@@ -1532,15 +1532,124 @@ List<?> findByCity(String city);
 Spring boot provides a Cache Abstraction API that allow us to use different cache providers to cache objects.
 ![img.png](img.png)
 
-### Default Caching in Spring Boot
-1. @EnableCaching
-   It is a class level annotation to enable caching in spring boot
+### Default Caching in Spring Boot (In memory Cache)
+1. `@EnableCaching` : It is a class level annotation to enable caching in spring boot
    application. By default it setup a CacheManager and creates in-memory
-   cache using one concurrent HashMap.
-2. @Cacheable
-   It is a method level annotation. It is used in the method whose response
+   cache using one concurrent HashMap. 
+2. `@Cacheable` : It is a method level annotation. It is used in the method whose response
    is to be cached. The Spring boot manages the request and response of the
-   method to the cache that is specified in the annotation attribute.
+   method to the cache that is specified in the annotation attribute. **Used**: `GET`
+3. `@CachePut` : It is a method level annotation. It is used to update the cache after
+   invoking the method. By doing this, the result is put in the cache and
+   the method is executed. It has same attributes of @Cacheable annotation. **Used**: `POST, PUT, PATCH`
+4. `@CacheEvict` : It is a method level annotation. It is used to remove the data from the
+   cache. When the method is annotated with this annotation then the method
+   is executed and the cache will be removed / evicted. **Used**: `DELETE`
+
+- First Enable Caching, either in MainApplicationFile or anyConfig file using annotation : `@EnableCaching`
+    ```java
+    @Configuration
+    @EnableCaching
+    public class CacheConfig{
+        @Bean
+        public CacheManager cacheManager() {
+            return new ConcurrentMapCacheManager("employees");
+        }
+    }
+    ```
+  - Then use `@Cacheable(cacheNames = "employees", key = "#id")' with controller, it will cache the response of that controller
+    ```java
+    @Cacheable(cacheNames = "employees", key = "#id")
+    public EmployeeDto getEmployee(Long id) {}
+    ```
+  - When you again call the same controller with same id, then it will not fetch from db it will return the response stored in cache
+
+
+- If we update the Employee then it will not get reflected in caching, to handle that we will use
+  - `@Cacheput` : Use when there is insert / update
+      ```java
+      @CachePut(value = "employees", key = "#result.id")
+      public EmployeeDto createEmployee(EmployeeDto dto) {}
+      ```
+
+
+- Here we are using expression language, for getting id for key : `#id` - id from parameter of function, `#result.id` - #result is used to access the result of that function
+
+
+### Internal Working of Spring Boot Caching
+1. When a method annotated with `@Cacheable` is called, Spring `AOP` intercepts the call and checks the cache before executing the method.
+2. The `CacheManager` is called to retrieve the Cache associated with the cache name (e.g.,"employees") using its get method.
+3. Cache Hit or Miss:
+   1. Hit: If the key exists, the cached value is returned directly.
+   2. Miss: If the key does not exist, the original method is executed.
+4. If the cache was missed, after the method executes, the result is stored in the cache using the `put` method of `Cache`.
+5. Return Result: Finally, the result is returned to the caller, either from the cache or the method execution.
+
+
+## Caching in Spring Boot using Redis
+
+### Installation in Windows & Spring Boot Setup
+#### Installation
+- `choco install redis-64` : this will install `memurai` and `memurai-cli` that is compatible of redis on windows
+- After installation memurai will automatically get started on : `127.0.0.1:6379`
+- configuration file: application.yml
+```yml
+spring:
+  data:
+    redis:
+      host: localhost    # Redis server host
+      port: 6379    
+  cache:
+    type: redis
+```
+- For redis Dto should be `serializable`
+```java
+@Data
+public class EmployeeDto implements Serializable {}
+```
+
+#### Connecting to Redis Cloud
+- Create Redis cloud Account, create new Database
+- (Optional) : Install Redis Insight
+- Connect your redis cloud to Spring boot
+```yml
+spring:
+  data:
+    redis:
+      host: <public-endpoint from redis cloud created database>    
+      port: <redis cloud port>
+      password: <get from redis cloud created database>
+```
+- Custom Configuration of redis
+```java
+@Bean
+    public CacheManager cacheManager(RedisConnectionFactory redisConnectionFactory){
+        RedisCacheConfiguration redisCacheConfiguration = RedisCacheConfiguration.defaultCacheConfig()
+                .prefixCacheNameWith("my-redis-")
+                .entryTtl(Duration.ofMinutes(10))
+                .enableTimeToIdle() 
+                .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(
+                        new GenericJacksonJsonRedisSerializer(new ObjectMapper())
+                ));  
+
+        return RedisCacheManager.builder(redisConnectionFactory)
+                .cacheDefaults(redisCacheConfiguration)
+                .build();
+    }
+```
+- `.prefixCacheNameWith(<prefix>)` : This add prefix to keys in redis database
+- `.entryTtl(Duration.ofMinutes(10))` : Add TTL earlier without TTL (Time to Live), Duration.of - [Minutes, Seconds, Days, etc]
+- `.enableTimeToIdle()` : This allow TTL to reset when same cached value is called, earlier reset was not done and TTL count from starting when cache was created
+- `.serializeKeysWith()` : Which format Key should be stored, here set to String format
+- `.serializeValuesWith()` : Format of value of key in redis, here we have set to JSON format
+
+
+### Redis basic Commands
+1) `keys *` : List all the keys
+2) `set <variable> <value of variable>` : e.g set name "saddy maddy"
+3) `get <variable>` : e.g get name --> this will return "saddy maddy"
+
 
 ## Extra
 
