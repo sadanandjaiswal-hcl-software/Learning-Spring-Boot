@@ -1366,6 +1366,181 @@ public void testGetAllOrdersPagination(){
 }
 ```
 
+### Relationship in MongoDB
+- Though in mongodb we don't have relationship, to use relationship in mongodb we use embedding or referencing
+- There is not Foreign Key concept, that why we can't use cascading, etc. You have to take care before deleting or creating product conditions should be satisfied
+
+#### Embedding
+- Different Embedded class which is not a @Document, and it is embedded to the Document class
+    ```java
+    public class Address {
+        private String city;
+        private String state;
+    }
+    public class Order{
+        // rest fields here
+        
+        private Address address;    // Address Class is embedded into Order Class Document
+    }
+    ```
+  
+- Embed When:
+  - The data is always accessed together
+  - The embedded data doesn't change independently
+  - The relationship is one-to-few (not one-to-millions)
+  - You want atomic updates on the entire document
+
+  
+
+#### Reference
+- Different Document is Refered to the Document
+- As foreign Key concept are not there, we can't use cascade, etc
+- You need to take care that Product is there before refering to it, and same for deleting.
+    ```java
+    public class Product{
+        // rest fields here
+        private String name;
+    }
+    public class Order{
+        // rest fields here
+        @DBRef(lazy = true)
+        private List<Product> products;
+    }
+    ```
+    - **Note**: By default lazy is false in DBRef, means: reference Document data will be fetched
+
+- Reference When:
+  - The data has its own lifecycle
+  - Multiple documents need to share the same data
+  - The relationship is one-to-many or many-to-many
+  - The referenced data changes frequently
+  - You need to query the data independently
+
+
+### Projection in MongoDB
+- Just like Select query in SQL, here we use fields
+```java
+@Query(value = "{'address.city': ?0}", fields = "{_id:1, 'address.city':1}")
+List<?> findByCity(String city);
+```
+
+### Playing with MongoTemplate
+#### Custom and Dynamic Query
+- Custom Query
+    ```java
+    List<Order> orders = mongoTemplate.findAll(Order.class);
+    
+    Query query = new Query(
+            Criteria.where("status").in("PENDING", "CANCELLED")
+                    .and("totalPrice").gte(100)
+    );
+    List<Order> orders = mongoTemplate.find(query, Order.class);
+    ```
+- Complex Custom Query
+    ```java
+    Query query = new Query(
+        new Criteria().orOperator(
+                Criteria.where("status").is("CONFIRMED"),
+                Criteria.where("totalPrice").lte(500)
+        ).andOperator(
+                Criteria.where("status").is("CONFIRMED"),
+                Criteria.where("quantity").gte(8)
+        )
+    );
+    ```
+- Projection
+    ```java
+    Query query = new Query(Criteria.where("status").is("PENDING"));
+    query.fields().include("status", "totalPrice", "quantity", "_id");  // Rest fields will be there as We are getting response in Order Dto but they will be null
+    query.limit(3);
+    ```
+- Dynamic Query : Filtering , Sorting, Pagination
+    ```java
+    public List<Order> filterDynamicQuery(OrderSearchCriteria searchCriteria){
+        Query query = new Query();
+        if(searchCriteria.getStaus()!=null){
+            query.addCriteria(Criteria.where("status").is(searchCriteria.getStaus()));
+        }
+    
+        if(searchCriteria.getQuantity()!=null){
+            query.addCriteria(Criteria.where("quantity").gte(searchCriteria.getQuantity()));
+        }
+    
+        if(searchCriteria.getTotalPrice()!=null){
+            query.addCriteria(Criteria.where("totalPrice").lte(searchCriteria.getTotalPrice()));
+            query.with(Sort.by(Sort.Direction.DESC, "totalPrice"));
+        }
+  
+        if(searchCriteria.getSortBy()!=null){
+            Sort.Direction direction = searchCriteria.isAscending() ? Sort.Direction.ASC : Sort.Direction.DESC;
+            query.with(Sort.by(direction, searchCriteria.getSortBy()));
+        }
+
+        if(searchCriteria.getPage()!=null){
+            Pageable pageable = PageRequest.of(searchCriteria.getPage(), searchCriteria.getSize());
+            query.with(pageable);
+        }
+        return mongoTemplate.find(query, Order.class);
+    }
+    ```
+  - Here, we will take searchCriteria and based on the criteria which are given query will be applied
+
+- Dynamic Query in Embedded Document
+    ```java
+    Query query = new Query(Criteria.where("address.city").in("Mumbai", "Delhi", "Noida"););
+    mongoTemplate.find(query, Order.class);
+    ```
+
+- Dynamic Query in Referencing
+    ```java
+    public void testQueryWithDBRef(){
+        Product product = mongoTemplate.findOne(
+                Query.query(Criteria.where("name").is("Earphone")),
+                Product.class
+        );
+        Query query = new Query(
+                Criteria.where("products.$id").is(new ObjectId(product.getId()))
+        );
+        List<Order> orders = mongoTemplate.find(query, Order.class);
+    }
+    ```
+  - Here `$id` is used to refer the id of referencing document
+
+- MultiUpdate
+    ```java
+    Query query = new Query(Criteria.where("status").is("PENDING"));
+    Update update = new Update().set("status", "SHIPPED");
+    mongoTemplate.updateMulti(query, update, Order.class);
+    ```
+- Upsert in MongoDB Spring Boot
+  - This will Update the Record if found otherwise it will create a new record
+    ```java
+    Query query = new Query(Criteria.where("name").is("Basketball"));
+    Update update = new Update()
+        .set("price", 29.99)
+        .set("stock", 50)
+        .addToSet("tags").each("Sports", "Outdoor")
+        .setOnInsert("reviews", 4.0)              // Only on first insert
+        .setOnInsert("createdAt", LocalDateTime.now());
+    UpdateResult result = mongoTemplate.upsert(query, update, Product.class);
+    ```
+
+- **Note**: When you use MongoTemplate then Auditing annotations will not work like: @LastModifiedDate, you need to manually update the fields. `new Update().set("updatedAt", new Date());`
+
+
+## Caching in Spring Boot
+Spring boot provides a Cache Abstraction API that allow us to use different cache providers to cache objects.
+![img.png](img.png)
+
+### Default Caching in Spring Boot
+1. @EnableCaching
+   It is a class level annotation to enable caching in spring boot
+   application. By default it setup a CacheManager and creates in-memory
+   cache using one concurrent HashMap.
+2. @Cacheable
+   It is a method level annotation. It is used in the method whose response
+   is to be cached. The Spring boot manages the request and response of the
+   method to the cache that is specified in the annotation attribute.
 
 ## Extra
 

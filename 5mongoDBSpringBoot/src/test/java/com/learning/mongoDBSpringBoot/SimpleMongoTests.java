@@ -193,7 +193,7 @@ public class SimpleMongoTests {
     @Test
     void testCreateRandomOrders() {
 
-        int numberOfOrders = 10;
+        int numberOfOrders = 14;
 
         List<String> statuses = List.of("PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED");
 
@@ -221,5 +221,15 @@ public class SimpleMongoTests {
         savedOrders.forEach(System.out::println);
     }
 
+    // Projection in MongoDB
+    @Test
+    public void testFindByCity(){
+        List<?> orders = orderRepository.findByCity("Thane");
+        System.out.println(orders);
+
+//        for (? order : orders) {
+//            System.out.println(order);
+//        }
+    }
 
 }

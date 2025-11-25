@@ -19,4 +19,12 @@ public interface OrderRepository extends MongoRepository<Order, String> {
 
     @Query("{status: ?0, totalPrice: {$gte: ?1}}")
     List<Order> findOrdersByStatusAndPriceAbove(String status, double price);
+
+    // Embedding Relationship
+    List<Order> findByAddressCity(String city);
+
+    // Projection
+//    @Query(value = "{address.city: ?0}", fields = "{'_id': 1, 'quantity': 1}")
+    @Query(value = "{'address.city': ?0}", fields = "{_id:1, 'address.city':1}")
+    List<?> findByCity(String city);
 }
